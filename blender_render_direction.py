@@ -431,7 +431,7 @@ class RenderOperator(bpy.types.Operator):
         # I left this in as in some of my models, I needed to translate the "root" object but
         # the animations were on the armature which I selected.
         # 
-        # obRoot = bpy.context.scene.objects["root"]
+        #obRoot = bpy.context.scene.objects["root"]
 
         only_armatures = True
         for o in selected_list:
@@ -450,7 +450,6 @@ class RenderOperator(bpy.types.Operator):
         cam_shift_y = bpy.context.scene.camera.data.shift_y
                     
         # calculate based on number of directions about which angle should be rotated each image
-        # TBD: this doesn't create good angles for case 16 and 32. why? rounding problem?
         directions = int(context.scene.render_prop.directions)
         
         blender_fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
@@ -498,6 +497,7 @@ class RenderOperator(bpy.types.Operator):
                         os.makedirs(animation_folder)
                     
                     #rotate the model for the new angle
+                    bpy.context.active_object.rotation_mode = "XYZ"
                     bpy.context.active_object.rotation_euler[2] = math.radians(angle - context.scene.render_prop.facing_angle)
                     
                     # the below is for the use case where the root needed to be translated.
