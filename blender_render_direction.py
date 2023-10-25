@@ -170,14 +170,20 @@ class RenderPropGroup(bpy.types.PropertyGroup):
 
 
     directions: bpy.props.EnumProperty(name="Directions", description="How many object directions to render", items=[
-        ('1','1', 'number of directions to render'),
-        ('2','2','number of directions to render'),
-        ('4','4','number of directions to render'),
-        ('8','8','number of directions to render'),
+        ('8','<=8','number of directions to render'),
         ('16','16','number of directions to render'),
         ('32','32','number of directions to render'),
         ])
-    cardinal_names: bpy.props.BoolProperty(name="Generate cardinal direction names", description="If activated use E, NE, N, NW, W, SW, S, SE for <= 8 directions. Otherwise generate angle names.", default=True)
+    direction_E: bpy.props.BoolProperty(name="E", default=True)
+    direction_NE: bpy.props.BoolProperty(name="NE", default=True)
+    direction_N: bpy.props.BoolProperty(name="N", default=True)
+    direction_NW: bpy.props.BoolProperty(name="NW", default=True)
+    direction_W: bpy.props.BoolProperty(name="W", default=True)
+    direction_SW: bpy.props.BoolProperty(name="SW", default=True)
+    direction_S: bpy.props.BoolProperty(name="S", default=True)
+    direction_SE: bpy.props.BoolProperty(name="SE", default=True)
+    
+#    cardinal_names: bpy.props.BoolProperty(name="Generate cardinal direction names", description="If activated use E, NE, N, NW, W, SW, S, SE for <= 8 directions. Otherwise generate angle names.", default=True)
     facing_angle: bpy.props.IntProperty(name="Facing Angle", description="Left oriented rotation angle compared to a character looking to the north view (top of the screen).", default=0)
     
 
@@ -291,10 +297,22 @@ class RENDER_PT_panel_p(bpy.types.Panel):
         row.prop(context.scene.render_prop, "directions")
         
         row = self.layout.row()
-        row.prop(context.scene.render_prop, "facing_angle")
+        row.prop(context.scene.render_prop, "direction_N")
+        row.prop(context.scene.render_prop, "direction_E")
+        row.prop(context.scene.render_prop, "direction_S")
+        row.prop(context.scene.render_prop, "direction_W")
+        row = self.layout.row()
+        row.prop(context.scene.render_prop, "direction_NE")
+        row.prop(context.scene.render_prop, "direction_SE")
+        row.prop(context.scene.render_prop, "direction_NW")
+        row.prop(context.scene.render_prop, "direction_SW")
+        
+#        row = self.layout.row()
+#        row.prop(context.scene.render_prop, "cardinal_names")
         
         row = self.layout.row()
-        row.prop(context.scene.render_prop, "cardinal_names")
+        row.prop(context.scene.render_prop, "facing_angle")
+        
                         
         split = self.layout.split(factor=0.92)
         
@@ -341,7 +359,6 @@ class RENDER_PT_panel_p(bpy.types.Panel):
     def register():
         bpy.types.Scene.render_prop = bpy.props.PointerProperty(type=RenderPropGroup)
 
-        pass
         #bpy.types.Scene.my_list.clear()
         
         #item = bpy.types.Scene.render_prop.my_list.add()
@@ -368,29 +385,27 @@ class RenderOperator(bpy.types.Operator):
     bl_idname = "object.render_operator"
     bl_label = "Render Operator"
 
-    def get_cardinal_name(self, angle):
-        angle_name = "angle_error"
+    def get_angle_from_name(self, angle_name):
+        angle = 0
         
-        if angle == 0:
-            angle_name = "N"
-        elif angle == 45:
-            angle_name = "NW"
-        elif angle == 90:
-            angle_name = "W"
-        elif angle == 135:
-            angle_name = "SW"
-        elif angle == 180:
-            angle_name = "S"
-        elif angle == 225:
-            angle_name = "SE"
-        elif angle == 270:
-            angle_name = "E"
-        elif angle == 315:
-            angle_name = "NE"
-        elif angle == 360: # not needed, but who knows...
-            angle_name = "N"
+        if angle_name == "N":
+            angle == 0
+        elif angle_name == "NW":
+            angle = 45            
+        elif angle_name == "W":
+            angle = 90            
+        elif angle_name == "SW":
+            angle = 135            
+        elif angle_name == "S":
+            angle = 180
+        elif angle_name == "SE":
+            angle = 225
+        elif angle_name == "E":
+            angle = 270            
+        elif angle_name == "NE":
+            angle = 315
             
-        return angle_name
+        return angle
 
     def get_cardinal_angle(self, directions, direction_num) -> int:
         if direction_num > directions:
@@ -400,7 +415,7 @@ class RenderOperator(bpy.types.Operator):
         angle = round(direction_num * angle_slice)
                
         return angle
-
+    
     def execute(self, context):
         print("Execute Render")
         
@@ -449,9 +464,27 @@ class RenderOperator(bpy.types.Operator):
         cam_shift_x = bpy.context.scene.camera.data.shift_x
         cam_shift_y = bpy.context.scene.camera.data.shift_y
                     
-        # calculate based on number of directions about which angle should be rotated each image
-        directions = int(context.scene.render_prop.directions)
+        # could be 8, 16, 32 based on this use angle dir name or cardinal values from the list
+        directions_max = int(context.scene.render_prop.directions)
         
+        directions = []
+        if bpy.context.scene.render_prop.direction_E:
+            directions.append("E")
+        if bpy.context.scene.render_prop.direction_NE:
+            directions.append("NE")
+        if bpy.context.scene.render_prop.direction_N:
+            directions.append("N")
+        if bpy.context.scene.render_prop.direction_NW:
+            directions.append("NW")
+        if bpy.context.scene.render_prop.direction_W:
+            directions.append("W")
+        if bpy.context.scene.render_prop.direction_SW:
+            directions.append("SW")
+        if bpy.context.scene.render_prop.direction_S:
+            directions.append("S")
+        if bpy.context.scene.render_prop.direction_SE:
+            directions.append("SE")
+                                
         blender_fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
         
         img_width = bpy.context.scene.render.resolution_x
@@ -483,13 +516,14 @@ class RenderOperator(bpy.types.Operator):
                     os.makedirs(action_folder)
                 
                 #loop through all directions
-                for direction_num in range(directions):
-                    angle = self.get_cardinal_angle(directions, direction_num)
+                for direction_num in range(len(directions)):
+                    angle_name = directions[direction_num]
+                    angle = self.get_angle_from_name(angle_name)
                     
-                    if context.scene.render_prop.cardinal_names and directions <= 8:
-                        angleDir = self.get_cardinal_name(angle)
+                    if directions_max == 8:
+                        angleDir = angle_name
                     else:
-                        angleDir = str(angle)   
+                        angleDir = str(angle)
                      
                     #create folder for specific angle
                     animation_folder = os.path.join(action_folder, angleDir)
