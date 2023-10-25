@@ -159,7 +159,7 @@ class MY_UL_List(UIList):
         print("draw")
 
 class RenderPropGroup(bpy.types.PropertyGroup):
-    name: bpy.props.StringProperty(name="name", default="Text")
+    prefix: bpy.props.StringProperty(name="Prefix", default="Animation", description="Prefix your animation to generate multiple variants of the same animation.")
     dirname: bpy.props.StringProperty(name="Output", default="/tmp/")
     value: bpy.props.IntProperty(name="value", default=5)
     frames: bpy.props.IntProperty(name="Frames (1/x)", default=4)
@@ -289,6 +289,9 @@ class RENDER_PT_panel_p(bpy.types.Panel):
         object = context.object
         
         self.layout.label(text="Settings to export rendered images:")
+        
+        row = self.layout.row()
+        row.prop(context.scene.render_prop, "prefix")
  
         row = self.layout.row()
         row.prop(context.scene.render_prop, "frames")
@@ -463,6 +466,8 @@ class RenderOperator(bpy.types.Operator):
         cam_location = bpy.context.scene.camera.location
         cam_shift_x = bpy.context.scene.camera.data.shift_x
         cam_shift_y = bpy.context.scene.camera.data.shift_y
+
+        prefix = bpy.context.scene.render_prop.prefix
                     
         # could be 8, 16, 32 based on this use angle dir name or cardinal values from the list
         directions_max = int(context.scene.render_prop.directions)
@@ -509,9 +514,9 @@ class RenderOperator(bpy.types.Operator):
                 
                 #dynamically set the last frame to render based on action
                 scn.frame_end = int(bpy.context.active_object.animation_data.action.frame_range[1])
-                                
+
                 #create folder for animation
-                action_folder = os.path.join(render_path, item.name)
+                action_folder = os.path.join(render_path, prefix + "_" + item.name)
                 if not os.path.exists(action_folder):
                     os.makedirs(action_folder)
                 
@@ -543,8 +548,10 @@ class RenderOperator(bpy.types.Operator):
                     for i in range(scn.frame_start,scn.frame_end, context.scene.render_prop.frames):
                         scn.frame_current = i
 
+                        prefix_name = prefix + "_" + item.name
                         json_frame = {}
-                        render_filename = (str(item.name)
+                        render_filename = (
+                                            prefix_name
                                             + "_"
                                             + str(angle)
                                             + "_"
@@ -586,7 +593,7 @@ class RenderOperator(bpy.types.Operator):
                           },
                       },
                       "animations": {
-                            item.name: {
+                            prefix_name: {
                                 angleDir: json_frames
                             },                         
                         },
@@ -595,7 +602,6 @@ class RenderOperator(bpy.types.Operator):
                     json_str = json.dumps(json_dict, indent=4)
                     
                     json_filename = os.path.join(animation_folder, "metadata.json")
-                    print("json_filename: " + json_filename)
 
                     # write JSON file
                     with open(json_filename, 'w') as outfile:
